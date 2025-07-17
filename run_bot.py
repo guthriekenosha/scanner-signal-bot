@@ -11,10 +11,15 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from googleapiclient.discovery import build
 from httplib2 import Http
+import json
+import io
+from google.oauth2.service_account import Credentials
 
 def init_google_sheet():
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-    creds = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", scope)
+    creds_json = os.environ.get("GOOGLE_CREDENTIALS")
+    creds_dict = json.loads(creds_json)
+    creds_gapi = Credentials.from_service_account_info(creds_dict, scopes=scope)
     client = gspread.authorize(creds)
     today_str = datetime.now().strftime("%Y-%m-%d")
     sheet_title = f"Signal Log {today_str}"
@@ -22,7 +27,6 @@ def init_google_sheet():
     from google.oauth2.service_account import Credentials
     from googleapiclient.discovery import build
 
-    creds_gapi = Credentials.from_service_account_file("credentials.json", scopes=scope)
     drive_service = build("drive", "v3", credentials=creds_gapi)
 
     folder_name = "Leverage Trade Signals"
