@@ -1,0 +1,10 @@
+{
+    "build": {
+        "env": {
+            "BOT_ENABLED": "true"
+        }
+    },
+    "deploy": {
+        "restart": true
+    }
+}
