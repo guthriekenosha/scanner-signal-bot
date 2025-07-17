@@ -20,7 +20,7 @@ def init_google_sheet():
     creds_json = os.environ.get("GOOGLE_CREDENTIALS")
     creds_dict = json.loads(creds_json)
     creds_gapi = Credentials.from_service_account_info(creds_dict, scopes=scope)
-    client = gspread.authorize(creds)
+    client = gspread.authorize(creds_gapi)
     today_str = datetime.now().strftime("%Y-%m-%d")
     sheet_title = f"Signal Log {today_str}"
     sheet = None
