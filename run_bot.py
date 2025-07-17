@@ -24,8 +24,6 @@ def init_google_sheet():
     today_str = datetime.now().strftime("%Y-%m-%d")
     sheet_title = f"Signal Log {today_str}"
     sheet = None
-    from google.oauth2.service_account import Credentials
-    from googleapiclient.discovery import build
 
     drive_service = build("drive", "v3", credentials=creds_gapi)
 
