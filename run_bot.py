@@ -200,12 +200,10 @@ def scan():
             submit_order(inst_id, side, price, size)
 
 def is_bot_enabled():
-    return os.environ.get("BOT_ENABLED", "false").lower() == "true"
+    return os.environ.get("BOT_DISABLED", "false").lower() != "true"
 
 if __name__ == "__main__":
-    if not is_bot_enabled():
-        print("🚫 BOT_DISABLED by environment variable.")
-    else:
+    if is_bot_enabled():
         try:
             while True:
                 scan()
@@ -213,3 +211,5 @@ if __name__ == "__main__":
                 time.sleep(SCAN_INTERVAL_SEC)
         except KeyboardInterrupt:
             print("👋 Scanner stopped.")
+    else:
+        print("🚫 BOT_DISABLED by environment variable.")
