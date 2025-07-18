@@ -71,6 +71,14 @@ def generate_signal(symbol, df, tf):
     bounce_score = int(ema_reclaim) + int(rsi_bounce) + int(recent_bottom)
     simulated_pnl = round(((df["close"].iloc[-1] - df["low"].iloc[-1]) / df["low"].iloc[-1]) * 100, 2)
 
+    # Support sweep detection (breakout from lower low)
+    recent_support = df["low"].rolling(window=10).min().iloc[-2]
+    sweep_occurred = df["low"].iloc[-1] < recent_support * 0.995  # Broke below support
+    reclaim_confirmed = df["close"].iloc[-1] > recent_support     # Closed back above it
+    rsi_recovery = df["rsi"].iloc[-1] > df["rsi"].iloc[-2] and df["rsi"].iloc[-2] < 35
+    bullish_engulfing = df["close"].iloc[-1] > df["open"].iloc[-1] and df["open"].iloc[-1] < df["close"].iloc[-2]
+    support_breakout_reversal = sweep_occurred and reclaim_confirmed and (rsi_recovery or bullish_engulfing)
+
     # Get latest values
     latest = df.iloc[-1]
 
@@ -133,6 +141,8 @@ def generate_signal(symbol, df, tf):
         signal_strength = min(5, 3 + momentum_score)
         print(f"🔥 {symbol} @ {tf} | Momentum Score: {momentum_score} | Strength: {signal_strength}")
         print(f"🟢 Bottom Bounce Score: {bounce_score} | 🔻 RSI: {rsi_bounce} | 📈 EMA Reclaim: {ema_reclaim} | 📊 Sim PnL: {simulated_pnl}% | 🧠 Stars: {'⭐' * signal_strength}")
+        if support_breakout_reversal:
+            print(f"🟩 {symbol} @ {tf} | Support Sweep Reversal: ✅ | RSI Reclaim: {rsi_recovery} | Engulfing: {bullish_engulfing}")
         signal_time = pd.to_datetime(df.index[-1], utc=True)
         now = pd.Timestamp.utcnow().replace(tzinfo=pd.Timestamp.utcnow().tzinfo)
         signal_age = round((now - signal_time).total_seconds() / 60.0, 2)
@@ -155,6 +165,7 @@ def generate_signal(symbol, df, tf):
             "ema_reclaim": ema_reclaim,
             "simulated_bounce_pnl": simulated_pnl,
             "confidence_stars": "⭐" * signal_strength,
+            "support_sweep_reversal": support_breakout_reversal,
         }
         if is_1m_hint:
             signal_dict["is_1m_hint"] = True
@@ -190,6 +201,8 @@ def generate_signal(symbol, df, tf):
         signal_strength = min(4, 2 + momentum_score)
         print(f"🔥 {symbol} @ {tf} | Momentum Score: {momentum_score} | Strength: {signal_strength}")
         print(f"🟢 Bottom Bounce Score: {bounce_score} | 🔻 RSI: {rsi_bounce} | 📈 EMA Reclaim: {ema_reclaim} | 📊 Sim PnL: {simulated_pnl}% | 🧠 Stars: {'⭐' * signal_strength}")
+        if support_breakout_reversal:
+            print(f"🟩 {symbol} @ {tf} | Support Sweep Reversal: ✅ | RSI Reclaim: {rsi_recovery} | Engulfing: {bullish_engulfing}")
         signal_time = pd.to_datetime(df.index[-1], utc=True)
         now = pd.Timestamp.utcnow().replace(tzinfo=pd.Timestamp.utcnow().tzinfo)
         signal_age = round((now - signal_time).total_seconds() / 60.0, 2)
@@ -212,6 +225,7 @@ def generate_signal(symbol, df, tf):
             "ema_reclaim": ema_reclaim,
             "simulated_bounce_pnl": simulated_pnl,
             "confidence_stars": "⭐" * signal_strength,
+            "support_sweep_reversal": support_breakout_reversal,
         }
         if is_1m_hint:
             signal_dict["is_1m_hint"] = True
