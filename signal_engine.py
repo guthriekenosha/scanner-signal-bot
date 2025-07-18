@@ -64,6 +64,13 @@ def generate_signal(symbol, df, tf):
     rs = avg_gain / avg_loss
     df["rsi"] = 100 - (100 / (1 + rs))
 
+    # Bottom bounce logic
+    ema_reclaim = df["close"].iloc[-1] > df["ema21"].iloc[-1] and df["close"].iloc[-2] < df["ema21"].iloc[-2]
+    rsi_bounce = df["rsi"].iloc[-1] > df["rsi"].iloc[-2] and df["rsi"].iloc[-2] < 30
+    recent_bottom = df["low"].iloc[-1] < df["low"].rolling(10).min().iloc[-1] * 1.05
+    bounce_score = int(ema_reclaim) + int(rsi_bounce) + int(recent_bottom)
+    simulated_pnl = round(((df["close"].iloc[-1] - df["low"].iloc[-1]) / df["low"].iloc[-1]) * 100, 2)
+
     # Get latest values
     latest = df.iloc[-1]
 
@@ -125,6 +132,7 @@ def generate_signal(symbol, df, tf):
         ema_alignment = df["ema21"].iloc[-1] - df["ema21"].iloc[-3]
         signal_strength = min(5, 3 + momentum_score)
         print(f"🔥 {symbol} @ {tf} | Momentum Score: {momentum_score} | Strength: {signal_strength}")
+        print(f"🟢 Bottom Bounce Score: {bounce_score} | 🔻 RSI: {rsi_bounce} | 📈 EMA Reclaim: {ema_reclaim} | 📊 Sim PnL: {simulated_pnl}% | 🧠 Stars: {'⭐' * signal_strength}")
         signal_time = pd.to_datetime(df.index[-1], utc=True)
         now = pd.Timestamp.utcnow().replace(tzinfo=pd.Timestamp.utcnow().tzinfo)
         signal_age = round((now - signal_time).total_seconds() / 60.0, 2)
@@ -142,6 +150,11 @@ def generate_signal(symbol, df, tf):
             "momentum_score": momentum_score,
             "signal_strength": signal_strength,
             "label_type": "confirmation",
+            "bottom_bounce_score": bounce_score,
+            "rsi_bounce_signal": rsi_bounce,
+            "ema_reclaim": ema_reclaim,
+            "simulated_bounce_pnl": simulated_pnl,
+            "confidence_stars": "⭐" * signal_strength,
         }
         if is_1m_hint:
             signal_dict["is_1m_hint"] = True
@@ -176,6 +189,7 @@ def generate_signal(symbol, df, tf):
         ema_alignment = df["ema21"].iloc[-1] - df["ema21"].iloc[-3]
         signal_strength = min(4, 2 + momentum_score)
         print(f"🔥 {symbol} @ {tf} | Momentum Score: {momentum_score} | Strength: {signal_strength}")
+        print(f"🟢 Bottom Bounce Score: {bounce_score} | 🔻 RSI: {rsi_bounce} | 📈 EMA Reclaim: {ema_reclaim} | 📊 Sim PnL: {simulated_pnl}% | 🧠 Stars: {'⭐' * signal_strength}")
         signal_time = pd.to_datetime(df.index[-1], utc=True)
         now = pd.Timestamp.utcnow().replace(tzinfo=pd.Timestamp.utcnow().tzinfo)
         signal_age = round((now - signal_time).total_seconds() / 60.0, 2)
@@ -193,6 +207,11 @@ def generate_signal(symbol, df, tf):
             "momentum_score": momentum_score,
             "signal_strength": signal_strength,
             "label_type": "anticipation",
+            "bottom_bounce_score": bounce_score,
+            "rsi_bounce_signal": rsi_bounce,
+            "ema_reclaim": ema_reclaim,
+            "simulated_bounce_pnl": simulated_pnl,
+            "confidence_stars": "⭐" * signal_strength,
         }
         if is_1m_hint:
             signal_dict["is_1m_hint"] = True

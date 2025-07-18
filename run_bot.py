@@ -156,7 +156,7 @@ def scan():
                 all_signals.append(signal)
                 # Log to Google Sheet only
                 if sheet.row_count == 0 or len(sheet.get_all_values()) <= 1:
-                    sheet.append_row(["timestamp", "symbol", "timeframe", "type", "price", "rsi", "ema21", "ema50", "score", "price_from_breakout", "ema_alignment", "signal_age", "log_type", "notes", "is_1m_hint", "early_hint_time", "signal_delay_minutes"])
+                    sheet.append_row(["timestamp", "symbol", "timeframe", "type", "price", "rsi", "ema21", "ema50", "score", "price_from_breakout", "ema_alignment", "signal_age", "log_type", "notes", "is_1m_hint", "early_hint_time", "signal_delay_minutes", "bottom_bounce_score", "rsi_bounce_signal", "ema_reclaim", "confidence_stars", "simulated_bounce_pnl"])
                 sheet.append_row([
                     str(signal.get("timestamp", datetime.now(timezone.utc).isoformat())),
                     signal["symbol"],
@@ -174,7 +174,12 @@ def scan():
                     ";".join(signal["notes"]),
                     is_1m_hint,
                     early_ts_str,
-                    signal.get("signal_delay_minutes", "")
+                    signal.get("signal_delay_minutes", ""),
+                    signal.get("bottom_bounce_score", ""),
+                    signal.get("rsi_bounce_signal", ""),
+                    signal.get("ema_reclaim", ""),
+                    signal.get("confidence_stars", ""),
+                    signal.get("simulated_bounce_pnl", "")
                 ])
             else:
                 print(f"❌ No signal for {symbol} on {tf}")
