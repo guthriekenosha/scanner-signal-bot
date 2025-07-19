@@ -105,7 +105,7 @@ def scan():
             early_hint_time = None
             signal_delay_minutes = None
             MAX_SIGNAL_AGE_MIN = 15
-            if signal.get("signal_age", 0) > MAX_SIGNAL_AGE_MIN:
+            if signal and signal.get("signal_age", 0) > MAX_SIGNAL_AGE_MIN:
                 log(f"⏱️ Skipping {symbol} @ {tf} — signal too old ({signal['signal_age']} min)")
                 continue
             if signal:
