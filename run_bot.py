@@ -101,12 +101,8 @@ def scan():
             log(df.tail(3).to_string())  # Show last 3 candles
             log(f"Latest close: {df['close'].iloc[-1]}")
             signal = generate_signal(symbol, df, tf)
-            is_1m_hint = False
-            early_hint_time = None
-            signal_delay_minutes = None
-            MAX_SIGNAL_AGE_MIN = 15
-            if signal and signal.get("signal_age", 0) > MAX_SIGNAL_AGE_MIN:
-                log(f"⏱️ Skipping {symbol} @ {tf} — signal too old ({signal['signal_age']} min)")
+            if signal and isinstance(signal, dict) and signal.get("signal_age", 0) > 15:
+                log(f"⏱️ Skipping {symbol} @ {tf} — signal too old ({signal.get('signal_age', '?')} min)")
                 continue
             if signal:
                 df_1m = get_candles(symbol, "1m")
@@ -117,6 +113,15 @@ def scan():
                         is_1m_hint = True
                         early_hint_time = df_1m.index[-1]
                         earliest_1m_hints[(symbol, signal_1m.get("direction"))] = early_hint_time
+                    else:
+                        is_1m_hint = False
+                        early_hint_time = None
+                else:
+                    is_1m_hint = False
+                    early_hint_time = None
+            else:
+                is_1m_hint = False
+                early_hint_time = None
             if signal:
                 import pandas as pd
                 cst = pytz.timezone("US/Central")
@@ -177,6 +182,9 @@ def scan():
                     "confidence_stars": signal.get("confidence_stars", ""),
                     "simulated_bounce_pnl": signal.get("simulated_bounce_pnl", "")
                 }
+                signal_age_min = signal.get("signal_age", 0)
+                if signal_age_min > 15:
+                    continue
                 required_keys = ["symbol", "timeframe", "type", "price", "rsi", "ema21", "ema50", "score", "notes"]
                 if not all(k in signal for k in required_keys):
                     log(f"⚠️ Signal for {symbol} @ {tf} missing required fields: {signal}")
@@ -184,9 +192,11 @@ def scan():
 
                 all_signals.append(signal)
                 # Log to Google Sheet only
-                if sheet.row_count == 0 or len(sheet.get_all_values()) <= 1:
-                    sheet.append_row(GOOGLE_SHEET_HEADERS)
-                sheet.append_row([str(signal.get(field, "")) if field != "notes" else ";".join(signal["notes"]) for field in GOOGLE_SHEET_HEADERS])
+                if signal_age_min <= 15:
+                    existing_rows = sheet.get_all_values()
+                    if not existing_rows or GOOGLE_SHEET_HEADERS != existing_rows[0]:
+                        sheet.insert_row(GOOGLE_SHEET_HEADERS, 1)
+                    sheet.append_row([str(signal.get(field, "")) if field != "notes" else ";".join(signal["notes"]) for field in GOOGLE_SHEET_HEADERS])
             else:
                 log(f"❌ No signal for {symbol} on {tf}")
 
