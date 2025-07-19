@@ -96,6 +96,9 @@ def scan():
                 log(f"⚠️ Not enough candles for {symbol} on {tf} (got {len(df)})")
                 continue
 
+            df['timestamp'] = pd.to_datetime(df['timestamp'], utc=True)
+            df.set_index('timestamp', inplace=True)
+
             df = calculate_indicators(df)
             log(f"🧪 Debug: Running signal check on {symbol} @ {tf}")
             log(df.tail(3).to_string())  # Show last 3 candles
@@ -129,7 +132,9 @@ def scan():
                 early_ts_str = ""
                 try:
                     final_ts = df.iloc[-1]["timestamp"]
-                    final_ts = pd.to_datetime(final_ts, utc=True)
+                    final_ts = pd.to_datetime(final_ts)
+                    if final_ts.tzinfo is None:
+                        final_ts = final_ts.replace(tzinfo=timezone.utc)
 
                     if is_1m_hint and (symbol, direction) in earliest_1m_hints:
                         raw_hint = earliest_1m_hints[(symbol, direction)]
@@ -194,7 +199,7 @@ def scan():
                 # Log to Google Sheet only
                 if signal_age_min <= 15:
                     existing_rows = sheet.get_all_values()
-                    if not existing_rows or GOOGLE_SHEET_HEADERS != existing_rows[0]:
+                    if not existing_rows or len(existing_rows[0]) < len(GOOGLE_SHEET_HEADERS) or GOOGLE_SHEET_HEADERS != existing_rows[0][:len(GOOGLE_SHEET_HEADERS)]:
                         sheet.insert_row(GOOGLE_SHEET_HEADERS, 1)
                     sheet.append_row([str(signal.get(field, "")) if field != "notes" else ";".join(signal["notes"]) for field in GOOGLE_SHEET_HEADERS])
             else:
