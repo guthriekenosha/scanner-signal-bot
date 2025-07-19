@@ -126,7 +126,6 @@ def scan():
                 is_1m_hint = False
                 early_hint_time = None
             if signal:
-                import pandas as pd
                 cst = pytz.timezone("US/Central")
                 direction = signal.get("direction")
                 early_ts_str = ""
