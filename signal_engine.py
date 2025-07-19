@@ -1,3 +1,5 @@
+import os
+import json
 import requests
 
 
@@ -272,3 +274,21 @@ def generate_signal(symbol, df, tf):
         }
 
     return None
+
+
+# Utility to load skipped signals from disk
+def load_skipped_signals(folder_path="Skipped Tokens"):
+    skipped = []
+    if not os.path.exists(folder_path):
+        print(f"📂 Skipped token folder not found: {folder_path}")
+        return skipped
+    for filename in os.listdir(folder_path):
+        if filename.endswith(".json"):
+            full_path = os.path.join(folder_path, filename)
+            try:
+                with open(full_path, "r") as f:
+                    data = json.load(f)
+                    skipped.append(data)
+            except Exception as e:
+                print(f"⚠️ Failed to load {filename}: {e}")
+    return skipped
