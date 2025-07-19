@@ -180,7 +180,8 @@ def scan():
                         if raw_hint and isinstance(raw_hint, (datetime, pd.Timestamp)):
                             if pd.notnull(raw_hint):
                                 early_ts = pd.to_datetime(raw_hint, utc=True)
-                                early_ts = early_ts.tz_localize('UTC') if early_ts.tzinfo is None else early_ts
+                                if early_ts.tzinfo is None:
+                                    early_ts = early_ts.tz_localize('UTC')
                                 early_ts_str = early_ts.astimezone(cst).strftime("%Y-%m-%d %H:%M:%S %Z")
                                 signal_delay_minutes = round((final_ts - early_ts).total_seconds() / 60.0, 2)
                             else:
