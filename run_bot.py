@@ -130,7 +130,7 @@ def scan():
                 direction = signal.get("direction")
                 early_ts_str = ""
                 try:
-                    final_ts = df.iloc[-1]["timestamp"]
+                    final_ts = df.index[-1]
                     final_ts = pd.to_datetime(final_ts)
                     if final_ts.tzinfo is None:
                         final_ts = final_ts.replace(tzinfo=timezone.utc)
