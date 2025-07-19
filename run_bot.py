@@ -14,6 +14,27 @@ from httplib2 import Http
 import json
 import io
 from google.oauth2.service_account import Credentials
+import pandas as pd
+
+AUTO_TRADE_MIN_SCORE = 4
+SCAN_INTERVAL_SEC = 60 * 5  # Run every 5 minutes
+MIN_CANDLE_COUNT = 50
+MIN_VOLUME_USDT = 5_000_000
+GOOGLE_SHEET_HEADERS = [
+    "timestamp", "symbol", "timeframe", "type", "price", "rsi", "ema21", "ema50", "score",
+    "price_from_breakout", "ema_alignment", "signal_age", "log_type", "notes",
+    "is_1m_hint", "early_hint_time", "signal_delay_minutes",
+    "bottom_bounce_score", "rsi_bounce_signal", "ema_reclaim",
+    "confidence_stars", "simulated_bounce_pnl"
+]
+
+def log(msg):
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] {msg}")
+
+def format_utc_to_cst(ts):
+    cst = pytz.timezone("US/Central")
+    ts = pd.to_datetime(ts, utc=True)
+    return ts.astimezone(cst).strftime("%Y-%m-%d %H:%M:%S %Z")
 
 def init_google_sheet():
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
@@ -45,7 +66,7 @@ def init_google_sheet():
     try:
         sheet = client.open(sheet_title).sheet1
     except gspread.exceptions.SpreadsheetNotFound:
-        print(f"📄 Sheet not found. Creating '{sheet_title}'...")
+        log(f"📄 Sheet not found. Creating '{sheet_title}'...")
         sheet = client.create(sheet_title).sheet1
 
     file_id = sheet.spreadsheet.id
@@ -55,38 +76,41 @@ def init_google_sheet():
     return sheet
 
 TIMEFRAMES = ["5m", "10m", "15m", "1h"]
-SCAN_INTERVAL_SEC = 60 * 5  # run every 5 minutes
 
 def scan():
-    print("🔍 Scanning Blofin USDT tokens for leverage setups...\n")
-    symbols = get_live_usdt_symbols(min_volume_usdt=5000000)
-    print(f"🪙 Found {len(symbols)} tokens to scan\n")
+    log("🔍 Scanning Blofin USDT tokens for leverage setups...\n")
+    symbols = get_live_usdt_symbols(min_volume_usdt=MIN_VOLUME_USDT)
+    log(f"🪙 Found {len(symbols)} tokens to scan\n")
     all_signals = []
     sheet = init_google_sheet()
     earliest_1m_hints = {}
 
     for symbol in symbols:
         for tf in TIMEFRAMES:
-            print(f"🔍 {symbol} @ {tf}")
+            log(f"🔍 {symbol} @ {tf}")
             df = get_candles(symbol, tf)
             if df is None:
-                print(f"⚠️ No data for {symbol} on {tf}")
+                log(f"⚠️ No data for {symbol} on {tf}")
                 continue
-            if len(df) < 50:
-                print(f"⚠️ Not enough candles for {symbol} on {tf} (got {len(df)})")
+            if len(df) < MIN_CANDLE_COUNT:
+                log(f"⚠️ Not enough candles for {symbol} on {tf} (got {len(df)})")
                 continue
 
             df = calculate_indicators(df)
-            print(f"🧪 Debug: Running signal check on {symbol} @ {tf}")
-            print(df.tail(3))  # Show last 3 candles
-            print("Latest close:", df['close'].iloc[-1])
+            log(f"🧪 Debug: Running signal check on {symbol} @ {tf}")
+            log(df.tail(3).to_string())  # Show last 3 candles
+            log(f"Latest close: {df['close'].iloc[-1]}")
             signal = generate_signal(symbol, df, tf)
             is_1m_hint = False
             early_hint_time = None
             signal_delay_minutes = None
+            MAX_SIGNAL_AGE_MIN = 15
+            if signal.get("signal_age", 0) > MAX_SIGNAL_AGE_MIN:
+                log(f"⏱️ Skipping {symbol} @ {tf} — signal too old ({signal['signal_age']} min)")
+                continue
             if signal:
                 df_1m = get_candles(symbol, "1m")
-                if df_1m is not None and len(df_1m) >= 50:
+                if df_1m is not None and len(df_1m) >= MIN_CANDLE_COUNT:
                     df_1m = calculate_indicators(df_1m)
                     signal_1m = generate_signal(symbol, df_1m, "1m")
                     if signal_1m and signal_1m.get("direction") == signal.get("direction"):
@@ -124,7 +148,7 @@ def scan():
                     final_ts_str = final_ts.astimezone(cst).strftime("%Y-%m-%d %H:%M:%S %Z")
 
                 except Exception as e:
-                    print(f"⚠️ Timestamp error for {symbol} on {tf}: {e}")
+                    log(f"⚠️ Timestamp error for {symbol} on {tf}: {e}")
                     signal_delay_minutes = ""
                     final_ts_str = ""
                     early_ts_str = ""
@@ -155,60 +179,35 @@ def scan():
                 }
                 required_keys = ["symbol", "timeframe", "type", "price", "rsi", "ema21", "ema50", "score", "notes"]
                 if not all(k in signal for k in required_keys):
-                    print(f"⚠️ Signal for {symbol} @ {tf} missing required fields: {signal}")
+                    log(f"⚠️ Signal for {symbol} @ {tf} missing required fields: {signal}")
                     continue
 
                 all_signals.append(signal)
                 # Log to Google Sheet only
                 if sheet.row_count == 0 or len(sheet.get_all_values()) <= 1:
-                    sheet.append_row(["timestamp", "symbol", "timeframe", "type", "price", "rsi", "ema21", "ema50", "score", "price_from_breakout", "ema_alignment", "signal_age", "log_type", "notes", "is_1m_hint", "early_hint_time", "signal_delay_minutes", "bottom_bounce_score", "rsi_bounce_signal", "ema_reclaim", "confidence_stars", "simulated_bounce_pnl"])
-                sheet.append_row([
-                    str(signal.get("timestamp", datetime.now(timezone.utc).isoformat())),
-                    signal["symbol"],
-                    signal["timeframe"],
-                    signal["type"],
-                    signal["price"],
-                    signal["rsi"],
-                    signal["ema21"],
-                    signal["ema50"],
-                    signal["score"],
-                    signal.get("price_from_breakout", ""),
-                    signal.get("ema_alignment", ""),
-                    signal.get("signal_age", ""),
-                    signal.get("log_type", ""),
-                    ";".join(signal["notes"]),
-                    is_1m_hint,
-                    early_ts_str,
-                    signal.get("signal_delay_minutes", ""),
-                    signal.get("bottom_bounce_score", ""),
-                    signal.get("rsi_bounce_signal", ""),
-                    signal.get("ema_reclaim", ""),
-                    signal.get("confidence_stars", ""),
-                    signal.get("simulated_bounce_pnl", "")
-                ])
+                    sheet.append_row(GOOGLE_SHEET_HEADERS)
+                sheet.append_row([str(signal.get(field, "")) if field != "notes" else ";".join(signal["notes"]) for field in GOOGLE_SHEET_HEADERS])
             else:
-                print(f"❌ No signal for {symbol} on {tf}")
+                log(f"❌ No signal for {symbol} on {tf}")
 
     if not all_signals:
-        print("❌ No valid setups found.\n")
+        log("❌ No valid setups found.\n")
         return
 
     # Sort by confidence score (descending)
     all_signals.sort(key=lambda x: x["score"], reverse=True)
 
-    AUTO_TRADE_MIN_SCORE = 4  # Only auto-trade signals with score >= 4
-
     for sig in all_signals:
-        print(f"📈 [{sig['timeframe']}] {sig['symbol']} | {sig['type']} | Score: {sig['score']}")
-        print(f"    Price: {sig['price']}, RSI: {sig['rsi']}, EMA21: {sig['ema21']}, EMA50: {sig['ema50']}")
-        print(f"    Notes: {', '.join(sig['notes'])}")
-        print("-" * 60)
+        log(f"📈 [{sig['timeframe']}] {sig['symbol']} | {sig['type']} | Score: {sig['score']}")
+        log(f"    Price: {sig['price']}, RSI: {sig['rsi']}, EMA21: {sig['ema21']}, EMA50: {sig['ema50']}")
+        log(f"    Notes: {', '.join(sig['notes'])}")
+        log("-" * 60)
         if sig['score'] >= AUTO_TRADE_MIN_SCORE:
             inst_id = sig['symbol']
             side = "buy" if sig['type'] == "long" else "sell"
             price = str(sig['price'])
             size = "0.1"  # Adjust based on capital or risk model
-            print(f"🚀 Auto-submitting trade for {inst_id} ({side}) @ {price}")
+            log(f"🚀 Auto-submitting trade for {inst_id} ({side}) @ {price}")
             submit_order(inst_id, side, price, size)
 
 def is_bot_enabled():
@@ -219,9 +218,9 @@ if __name__ == "__main__":
         try:
             while True:
                 scan()
-                print("⏳ Waiting for next scan...\n")
+                log("⏳ Waiting for next scan...\n")
                 time.sleep(SCAN_INTERVAL_SEC)
         except KeyboardInterrupt:
-            print("👋 Scanner stopped.")
+            log("👋 Scanner stopped.")
     else:
-        print("🚫 BOT_DISABLED by environment variable.")
+        log("🚫 BOT_DISABLED by environment variable.")
