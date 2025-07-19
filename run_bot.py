@@ -96,7 +96,7 @@ def scan():
                 log(f"⚠️ Not enough candles for {symbol} on {tf} (got {len(df)})")
                 continue
 
-            df['timestamp'] = pd.to_datetime(df['timestamp'], utc=True)
+            df['timestamp'] = pd.to_datetime(df['timestamp'], utc=True).dt.tz_localize(None)
             df.set_index('timestamp', inplace=True)
 
             df = calculate_indicators(df)
@@ -109,6 +109,9 @@ def scan():
                 continue
             if signal:
                 df_1m = get_candles(symbol, "1m")
+                if df_1m is not None:
+                    df_1m['timestamp'] = pd.to_datetime(df_1m['timestamp'], utc=True)
+                    df_1m.set_index('timestamp', inplace=True)
                 if df_1m is not None and len(df_1m) >= MIN_CANDLE_COUNT:
                     df_1m = calculate_indicators(df_1m)
                     signal_1m = generate_signal(symbol, df_1m, "1m")
@@ -130,11 +133,7 @@ def scan():
                 direction = signal.get("direction")
                 early_ts_str = ""
                 try:
-                    final_ts = df.index[-1]
-                    final_ts = pd.to_datetime(final_ts)
-                    if final_ts.tzinfo is None:
-                        final_ts = final_ts.replace(tzinfo=timezone.utc)
-
+                    final_ts = pd.to_datetime(df.index[-1], utc=True)
                     if is_1m_hint and (symbol, direction) in earliest_1m_hints:
                         raw_hint = earliest_1m_hints[(symbol, direction)]
                         if raw_hint and isinstance(raw_hint, (datetime, pd.Timestamp)):
