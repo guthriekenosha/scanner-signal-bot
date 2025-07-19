@@ -188,7 +188,7 @@ def generate_signal(symbol, df, tf):
                     print(f"⚠️ Invalid timestamp for {symbol}, skipping delay calc.")
                 else:
                     signal_dict["signal_delay_minutes"] = round(
-                        (current_ts - hint_time).total_seconds() / 60, 2
+                        (current_ts.replace(tzinfo=None) - hint_time.replace(tzinfo=None)).total_seconds() / 60, 2
                     )
             del early_hints[symbol]
         return signal_dict
@@ -248,7 +248,7 @@ def generate_signal(symbol, df, tf):
                     print(f"⚠️ Invalid timestamp for {symbol}, skipping delay calc.")
                 else:
                     signal_dict["signal_delay_minutes"] = round(
-                        (current_ts - hint_time).total_seconds() / 60, 2
+                        (current_ts.replace(tzinfo=None) - hint_time.replace(tzinfo=None)).total_seconds() / 60, 2
                     )
             del early_hints[symbol]
         return signal_dict
