@@ -75,6 +75,42 @@ def init_google_sheet():
 
     return sheet
 
+def init_skipped_sheet():
+    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+    creds_json = os.environ.get("GOOGLE_CREDENTIALS")
+    creds_dict = json.loads(creds_json)
+    creds_gapi = Credentials.from_service_account_info(creds_dict, scopes=scope)
+    client = gspread.authorize(creds_gapi)
+
+    drive_service = build("drive", "v3", credentials=creds_gapi)
+    folder_name = "Skipped Tokens"
+    folder_metadata = {
+        "name": folder_name,
+        "mimeType": "application/vnd.google-apps.folder"
+    }
+    response = drive_service.files().list(
+        q=f"name='{folder_name}' and mimeType='application/vnd.google-apps.folder' and trashed=false",
+        spaces='drive', fields='files(id, name)').execute()
+    files = response.get('files', [])
+    if files:
+        folder_id = files[0]['id']
+    else:
+        folder = drive_service.files().create(body=folder_metadata, fields='id').execute()
+        folder_id = folder.get('id')
+
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    sheet_title = f"Skipped {today_str}"
+    try:
+        sheet = client.open(sheet_title).sheet1
+    except gspread.exceptions.SpreadsheetNotFound:
+        log(f"📄 Creating skipped signal sheet '{sheet_title}'...")
+        sheet = client.create(sheet_title).sheet1
+
+    file_id = sheet.spreadsheet.id
+    drive_service.files().update(fileId=file_id, addParents=folder_id, removeParents='root', fields='id, parents').execute()
+
+    return sheet
+
 TIMEFRAMES = ["5m", "10m", "15m", "1h"]
 
 def scan():
@@ -82,6 +118,7 @@ def scan():
     symbols = get_live_usdt_symbols(min_volume_usdt=MIN_VOLUME_USDT)
     log(f"🪙 Found {len(symbols)} tokens to scan\n")
     all_signals = []
+    skipped_signals = []
     sheet = init_google_sheet()
     earliest_1m_hints = {}
 
@@ -106,6 +143,10 @@ def scan():
             signal = generate_signal(symbol, df, tf)
             if signal and isinstance(signal, dict) and signal.get("signal_age", 0) > 15:
                 log(f"⏱️ Skipping {symbol} @ {tf} — signal too old ({signal.get('signal_age', '?')} min)")
+                continue
+            if signal is None:
+                # We treat None from generate_signal as skipped signal; capture minimal info
+                skipped_signals.append({"symbol": symbol, "timeframe": tf})
                 continue
             if signal:
                 df_1m = get_candles(symbol, "1m")
@@ -205,6 +246,14 @@ def scan():
 
     if not all_signals:
         log("❌ No valid setups found.\n")
+        if skipped_signals:
+            skipped_sheet = init_skipped_sheet()
+            skipped_headers = ["symbol", "timeframe"]
+            existing_rows = skipped_sheet.get_all_values()
+            if not existing_rows or skipped_headers != existing_rows[0][:len(skipped_headers)]:
+                skipped_sheet.insert_row(skipped_headers, 1)
+            for row in skipped_signals:
+                skipped_sheet.append_row([row.get("symbol", ""), row.get("timeframe", "")])
         return
 
     # Sort by confidence score (descending)
@@ -222,6 +271,14 @@ def scan():
             size = "0.1"  # Adjust based on capital or risk model
             log(f"🚀 Auto-submitting trade for {inst_id} ({side}) @ {price}")
             submit_order(inst_id, side, price, size)
+    if skipped_signals:
+        skipped_sheet = init_skipped_sheet()
+        skipped_headers = ["symbol", "timeframe"]
+        existing_rows = skipped_sheet.get_all_values()
+        if not existing_rows or skipped_headers != existing_rows[0][:len(skipped_headers)]:
+            skipped_sheet.insert_row(skipped_headers, 1)
+        for row in skipped_signals:
+            skipped_sheet.append_row([row.get("symbol", ""), row.get("timeframe", "")])
 
 def is_bot_enabled():
     return os.environ.get("BOT_DISABLED", "false").lower() != "true"
