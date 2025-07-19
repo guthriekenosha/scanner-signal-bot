@@ -263,7 +263,12 @@ def generate_signal(symbol, df, tf):
             "reason": "1m Early Signal Hint: Structure + RSI + Volume",
             "is_1m_hint": True,
             "timestamp": str(df.index[-1]),
-            "log_type": "hint"
+            "log_type": "hint",
+            "bottom_bounce_score": bounce_score,
+            "rsi_bounce_signal": rsi_bounce,
+            "ema_reclaim": ema_reclaim,
+            "simulated_bounce_pnl": simulated_pnl,
+            "confidence_stars": "⭐" * 1,
         }
 
     return None
