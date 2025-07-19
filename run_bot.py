@@ -146,7 +146,12 @@ def scan():
                     "timestamp": final_ts_str,
                     "is_1m_hint": is_1m_hint,
                     "early_hint_time": early_ts_str,
-                    "signal_delay_minutes": signal_delay_minutes
+                    "signal_delay_minutes": signal_delay_minutes,
+                    "bottom_bounce_score": signal.get("bottom_bounce_score", ""),
+                    "rsi_bounce_signal": signal.get("rsi_bounce_signal", ""),
+                    "ema_reclaim": signal.get("ema_reclaim", ""),
+                    "confidence_stars": signal.get("confidence_stars", ""),
+                    "simulated_bounce_pnl": signal.get("simulated_bounce_pnl", "")
                 }
                 required_keys = ["symbol", "timeframe", "type", "price", "rsi", "ema21", "ema50", "score", "notes"]
                 if not all(k in signal for k in required_keys):
