@@ -1,0 +1,3 @@
+[submodule "signal_lib/scanner-signal-bot-lib"]
+	path = signal_lib/scanner-signal-bot-lib
+	url = https://github.com/guthriekenosha/scanner-signal-bot.git
