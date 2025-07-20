@@ -236,12 +236,6 @@ def scan():
                     continue
 
                 all_signals.append(signal)
-                # Log to Google Sheet only
-                if signal_age_min <= 15:
-                    existing_rows = sheet.get_all_values()
-                    if not existing_rows or len(existing_rows[0]) < len(GOOGLE_SHEET_HEADERS) or GOOGLE_SHEET_HEADERS != existing_rows[0][:len(GOOGLE_SHEET_HEADERS)]:
-                        sheet.insert_row(GOOGLE_SHEET_HEADERS, 1)
-                    sheet.append_row([str(signal.get(field, "")) if field != "notes" else ";".join(signal["notes"]) for field in GOOGLE_SHEET_HEADERS])
             else:
                 log(f"❌ No signal for {symbol} on {tf}")
 
@@ -253,18 +247,25 @@ def scan():
             existing_rows = skipped_sheet.get_all_values()
             if not existing_rows or skipped_headers != existing_rows[0][:len(skipped_headers)]:
                 skipped_sheet.insert_row(skipped_headers, 1)
+            rows_skipped = []
             for row in skipped_signals:
-                skipped_sheet.append_row([row.get("symbol", ""), row.get("timeframe", "")])
+                rows_skipped.append([row.get("symbol", ""), row.get("timeframe", "")])
+            if rows_skipped:
+                skipped_sheet.append_rows(rows_skipped)
         return
 
     # Sort by confidence score (descending)
     all_signals.sort(key=lambda x: x["score"], reverse=True)
+
+    rows_to_append = []
 
     for sig in all_signals:
         log(f"📈 [{sig['timeframe']}] {sig['symbol']} | {sig['type']} | Score: {sig['score']}")
         log(f"    Price: {sig['price']}, RSI: {sig['rsi']}, EMA21: {sig['ema21']}, EMA50: {sig['ema50']}")
         log(f"    Notes: {', '.join(sig['notes'])}")
         log("-" * 60)
+        row = [str(sig.get(field, "")) if field != "notes" else ";".join(sig["notes"]) for field in GOOGLE_SHEET_HEADERS]
+        rows_to_append.append(row)
         if sig['score'] >= AUTO_TRADE_MIN_SCORE:
             inst_id = sig['symbol']
             side = "buy" if sig['type'] == "long" else "sell"
@@ -272,14 +273,22 @@ def scan():
             size = "0.1"  # Adjust based on capital or risk model
             log(f"🚀 Auto-submitting trade for {inst_id} ({side}) @ {price}")
             submit_order(inst_id, side, price, size)
+    if rows_to_append:
+        existing_rows = sheet.get_all_values()
+        if not existing_rows or len(existing_rows[0]) < len(GOOGLE_SHEET_HEADERS) or GOOGLE_SHEET_HEADERS != existing_rows[0][:len(GOOGLE_SHEET_HEADERS)]:
+            sheet.insert_row(GOOGLE_SHEET_HEADERS, 1)
+        sheet.append_rows(rows_to_append)
     if skipped_signals:
         skipped_sheet = init_skipped_sheet()
         skipped_headers = ["symbol", "timeframe"]
         existing_rows = skipped_sheet.get_all_values()
         if not existing_rows or skipped_headers != existing_rows[0][:len(skipped_headers)]:
             skipped_sheet.insert_row(skipped_headers, 1)
+        rows_skipped = []
         for row in skipped_signals:
-            skipped_sheet.append_row([row.get("symbol", ""), row.get("timeframe", "")])
+            rows_skipped.append([row.get("symbol", ""), row.get("timeframe", "")])
+        if rows_skipped:
+            skipped_sheet.append_rows(rows_skipped)
 
 def is_bot_enabled():
     return os.environ.get("BOT_DISABLED", "false").lower() != "true"
