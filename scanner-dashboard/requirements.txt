@@ -1,0 +1,10 @@
+streamlit
+pandas
+numpy
+matplotlib
+plotly
+requests
+pytz
+streamlit-autorefresh
+gspread
+google-auth
