@@ -5,7 +5,7 @@ import os
 from datetime import datetime, timezone
 from blofin_client import get_candles, calculate_indicators
 from blofin_client import get_live_usdt_symbols
-from signal_engine import generate_signal, load_skipped_signals
+from signal_engine import generate_signal
 from trade_manager import submit_order
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
