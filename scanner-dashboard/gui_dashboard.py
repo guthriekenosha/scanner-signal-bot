@@ -17,6 +17,11 @@ import json
 import os
 import sys
 
+# Add submodule path to Python path (Streamlit Cloud fix)
+submodule_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "signal_lib/scanner-signal-bot-lib"))
+if submodule_path not in sys.path:
+    sys.path.insert(0, submodule_path)
+
 # --- Ensure project root is in sys.path for imports ---
 
 repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
