@@ -4,6 +4,8 @@ port = 8501
 enableCORS = false
 enableGitSubmodules = true
 
+setupScript = ".streamlit/setup.sh"  # ✅ Add this line here
+
 [theme]
 base = "light"
 primaryColor = "#0E1117"
@@ -11,4 +13,5 @@ backgroundColor = "#FFFFFF"
 secondaryBackgroundColor = "#F0F2F6"
 textColor = "#000000"
 font = "sans serif"
+
 [google]
