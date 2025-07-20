@@ -100,6 +100,9 @@ def generate_signal(symbol, df, tf):
     # Confirm RSI threshold lowered to 45
     rsi_ok = df["rsi"].iloc[-1] > 45
 
+    # Fast mover flag: candle moves >2.5% in one bar
+    fast_candle = (latest["high"] - latest["low"]) / latest["low"] > 0.025
+
     # Early breakout detection - enhanced with momentum and structure
     proximity_to_resistance = latest["close"] >= prev_highs.max() * 0.98
     rsi_surge = df["rsi"].iloc[-1] - df["rsi"].iloc[-4] > 10
@@ -145,6 +148,8 @@ def generate_signal(symbol, df, tf):
         print(f"🟢 Bottom Bounce Score: {bounce_score} | 🔻 RSI: {rsi_bounce} | 📈 EMA Reclaim: {ema_reclaim} | 📊 Sim PnL: {simulated_pnl}% | 🧠 Stars: {'⭐' * signal_strength}")
         if support_breakout_reversal:
             print(f"🟩 {symbol} @ {tf} | Support Sweep Reversal: ✅ | RSI Reclaim: {rsi_recovery} | Engulfing: {bullish_engulfing}")
+        if fast_candle:
+            print(f"🚀 {symbol} @ {tf} | FAST MOVER DETECTED! (>2.5% candle)")
         signal_time = pd.to_datetime(df.index[-1], utc=True)
         now = pd.Timestamp.utcnow().replace(tzinfo=pd.Timestamp.utcnow().tzinfo)
         signal_age = round((now - signal_time).total_seconds() / 60.0, 2)
@@ -168,6 +173,7 @@ def generate_signal(symbol, df, tf):
             "simulated_bounce_pnl": simulated_pnl,
             "confidence_stars": "⭐" * signal_strength,
             "support_sweep_reversal": support_breakout_reversal,
+            "fast_mover": fast_candle,
         }
         if is_1m_hint:
             signal_dict["is_1m_hint"] = True
@@ -228,6 +234,7 @@ def generate_signal(symbol, df, tf):
             "simulated_bounce_pnl": simulated_pnl,
             "confidence_stars": "⭐" * signal_strength,
             "support_sweep_reversal": support_breakout_reversal,
+            "fast_mover": fast_candle,
         }
         if is_1m_hint:
             signal_dict["is_1m_hint"] = True
@@ -255,6 +262,8 @@ def generate_signal(symbol, df, tf):
 
     if proximity_to_resistance and (rsi_surge or volume_surge or structure_build):
         print(f"❌ Potential Missed Signal: {symbol} @ {tf} | Structure forming, but breakout not confirmed.")
+        if fast_candle:
+            print(f"⚠️ {symbol} @ {tf} | Fast mover breakout missed. Consider earlier entry logic.")
 
     if is_1m_hint:
         return {
