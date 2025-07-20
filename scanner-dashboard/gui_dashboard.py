@@ -19,7 +19,9 @@ import sys
 
 # --- Ensure project root is in sys.path for imports ---
 
-sys.path.insert(0, os.path.abspath("signal_lib/scanner-signal-bot-lib"))
+repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+signal_lib_path = os.path.join(repo_root, 'signal_lib', 'scanner-signal-bot-lib')
+sys.path.insert(0, signal_lib_path)
 
 from signal_engine import load_skipped_signals
 
