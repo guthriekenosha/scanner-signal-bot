@@ -17,6 +17,20 @@ import json
 import os
 import sys
 
+# --- Submodule auto-init and path patch for Streamlit Cloud ---
+import subprocess
+
+# Automatically run submodule init on Streamlit Cloud
+if os.environ.get("STREAMLIT_SERVER_ENABLED", "") or os.getenv("DEBUG_IMPORTS") == "true":
+    try:
+        subprocess.run(["git", "submodule", "update", "--init", "--recursive"], check=True)
+        print("✅ Submodules updated")
+    except Exception as e:
+        print(f"⚠️ Failed to update submodules: {e}")
+
+# Ensure the path is added AFTER submodule update
+sys.path.insert(0, os.path.abspath("signal_lib/scanner-signal-bot-lib"))
+
 # --- DEBUG IMPORT BLOCK -------------------------------------------------------
 import pathlib, traceback, importlib.util
 
