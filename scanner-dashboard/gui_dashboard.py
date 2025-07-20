@@ -1,4 +1,19 @@
 # gui_dashboard.py
+
+# --- Bootstrap the submodule if not present ---
+import os
+import sys
+import subprocess
+
+# --- Bootstrap the submodule if not present ---
+submodule_path = "signal_lib/scanner-signal-bot-lib"
+if not os.path.exists(submodule_path):
+    print("🛠 Initializing submodule...")
+    subprocess.run(["git", "submodule", "update", "--init", "--recursive"], check=True)
+
+# --- Add to Python path ---
+sys.path.insert(0, os.path.abspath(submodule_path))
+
 import streamlit as st
 import pandas as pd
 from streamlit_autorefresh import st_autorefresh
@@ -14,78 +29,8 @@ import gspread
 from google.oauth2.service_account import Credentials
 
 import json
-import os
-import sys
 
-# --- Submodule auto-init and path patch for Streamlit Cloud ---
-import subprocess
-
-# Automatically run submodule init on Streamlit Cloud
-if os.environ.get("STREAMLIT_SERVER_ENABLED", "") or os.getenv("DEBUG_IMPORTS") == "true":
-    try:
-        subprocess.run(["git", "submodule", "update", "--init", "--recursive"], check=True)
-        print("✅ Submodules updated")
-    except Exception as e:
-        print(f"⚠️ Failed to update submodules: {e}")
-
-# Ensure the path is added AFTER submodule update
-sys.path.insert(0, os.path.abspath("signal_lib/scanner-signal-bot-lib"))
-
-# --- DEBUG IMPORT BLOCK -------------------------------------------------------
-import pathlib, traceback, importlib.util
-
-if st.secrets.get("DEBUG_IMPORTS", False):  # toggle via Streamlit Secrets
-    here = pathlib.Path(__file__).resolve()
-    st.write("**__file__**:", here)
-    st.write("**Current working directory**:", os.getcwd())
-
-    # Show sys.path before patch
-    st.write("**sys.path BEFORE patch:**")
-    st.code("\n".join(sys.path))
-
-    # Compute and insert submodule path robustly
-    submodule_path = (here.parent / "signal_lib" / "scanner-signal-bot-lib").resolve()
-    st.write("**Resolved submodule_path:**", submodule_path, submodule_path.exists())
-
-    if submodule_path.exists() and submodule_path.is_dir():
-        if str(submodule_path) not in sys.path:
-            sys.path.insert(0, str(submodule_path))
-    else:
-        st.error("Submodule path does NOT exist on Streamlit runtime. Did submodules init?")
-
-    # Show folder contents
-    try:
-        st.write("**Files in submodule folder:**")
-        st.code("\n".join(os.listdir(submodule_path)))
-    except Exception as e:
-        st.write("Couldn't list submodule folder:", e)
-
-    # Check whether import would succeed using importlib
-    spec = importlib.util.find_spec("signal_engine")
-    st.write("**importlib.find_spec('signal_engine') ->**", spec)
-
-    # Show sys.path after insert
-    st.write("**sys.path AFTER patch:**")
-    st.code("\n".join(sys.path))
-# -------------------------------------------------------------------------------
-
-# Add submodule path to Python path (Streamlit Cloud fix)
-submodule_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "signal_lib/scanner-signal-bot-lib"))
-if submodule_path not in sys.path:
-    sys.path.insert(0, submodule_path)
-
-# --- Ensure project root is in sys.path for imports ---
-
-repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-signal_lib_path = os.path.join(repo_root, 'signal_lib', 'scanner-signal-bot-lib')
-sys.path.insert(0, signal_lib_path)
-
-try:
-    from signal_engine import load_skipped_signals
-except Exception as e:
-    st.error("❌ Failed to import `signal_engine`.")
-    st.exception(e)
-    st.stop()
+from signal_engine import load_skipped_signals
 
 def format_signal_age(delta):
     total_minutes = int(delta.total_seconds() // 60)
