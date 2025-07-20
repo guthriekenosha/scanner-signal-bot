@@ -17,7 +17,7 @@ from google.oauth2.service_account import Credentials
 import pandas as pd
 
 AUTO_TRADE_MIN_SCORE = 4
-SCAN_INTERVAL_SEC = 60 * 5  # Run every 5 minutes
+SCAN_INTERVAL_SEC = 60 * 2  # Run every 5 minutes
 MIN_CANDLE_COUNT = 50
 MIN_VOLUME_USDT = 5_000_000
 GOOGLE_SHEET_HEADERS = [
