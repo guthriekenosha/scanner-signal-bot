@@ -2,7 +2,7 @@
 headless = true
 port = 8501
 enableCORS = false
-enableGitSubmodules = true
+
 
 setupScript = ".streamlit/setup.sh"  # ✅ Add this line here
 
