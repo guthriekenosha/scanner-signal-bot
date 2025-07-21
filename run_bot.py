@@ -15,6 +15,7 @@ import json
 import io
 from google.oauth2.service_account import Credentials
 import pandas as pd
+from utils import send_telegram_alert
 
 AUTO_TRADE_MIN_SCORE = 4
 SCAN_INTERVAL_SEC = 60 * 2  # Run every 5 minutes
@@ -273,6 +274,7 @@ def scan():
             size = "0.1"  # Adjust based on capital or risk model
             log(f"🚀 Auto-submitting trade for {inst_id} ({side}) @ {price}")
             submit_order(inst_id, side, price, size)
+            send_telegram_alert(sig)
     if rows_to_append:
         existing_rows = sheet.get_all_values()
         if not existing_rows or len(existing_rows[0]) < len(GOOGLE_SHEET_HEADERS) or GOOGLE_SHEET_HEADERS != existing_rows[0][:len(GOOGLE_SHEET_HEADERS)]:
