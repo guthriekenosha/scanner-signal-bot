@@ -3,7 +3,7 @@
 import os
 
 import gspread
-from oauth2client.service_account import ServiceAccountCredentials
+from google.oauth2.service_account import Credentials
 
 import streamlit as st
 import pandas as pd
@@ -31,7 +31,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 def log_skipped_token(token: str, reason: str):
     # Setup Google Sheets credentials
     scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
-    creds = ServiceAccountCredentials.from_json_keyfile_name('gdrive_credentials.json', scope)
+    creds = Credentials.from_service_account_file('gdrive_credentials.json', scopes=scope)
     client = gspread.authorize(creds)
 
     # Format today's date for sheet naming
@@ -55,11 +55,11 @@ def log_skipped_token(token: str, reason: str):
 # --- Fetch skipped tokens from Google Sheet ---
 def fetch_skipped_tokens_from_google_sheet(sheet_url):
     import gspread
-    from oauth2client.service_account import ServiceAccountCredentials
+    from google.oauth2.service_account import Credentials
     import pandas as pd
 
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-    creds = ServiceAccountCredentials.from_json_keyfile_name("gdrive_credentials.json", scope)
+    creds = Credentials.from_service_account_file("gdrive_credentials.json", scopes=scope)
     client = gspread.authorize(creds)
 
     sheet = client.open_by_url(sheet_url).worksheet("skipped")
