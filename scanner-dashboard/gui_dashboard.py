@@ -30,7 +30,7 @@ from google.oauth2.service_account import Credentials
 
 import json
 
-from signal_engine import load_skipped_signals
+from utils import load_today_signals_from_sheets
 
 def format_signal_age(delta):
     total_minutes = int(delta.total_seconds() // 60)
@@ -129,11 +129,11 @@ df = df[df["timestamp"] >= cutoff]
 
 # Load skipped signals if toggle is enabled
 if st.sidebar.checkbox("Show Skipped but High Potential Signals", value=False):
-    skipped_df = load_skipped_signals()
-    if not skipped_df.empty:
-        skipped_df["skipped"] = True
+    df_skipped = load_today_signals_from_sheets(sheet_name="Skipped Signals")
+    if not df_skipped.empty:
+        df_skipped["skipped"] = True
         df["skipped"] = False
-        df = pd.concat([df, skipped_df], ignore_index=True)
+        df = pd.concat([df, df_skipped], ignore_index=True)
 
 st.sidebar.title("🔍 Filters")
 
