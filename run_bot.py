@@ -15,7 +15,7 @@ import json
 import io
 from google.oauth2.service_account import Credentials
 import pandas as pd
-from utils import send_telegram_alert
+from utils import send_telegram_alert, load_skipped_signals
 
 AUTO_TRADE_MIN_SCORE = 4
 SCAN_INTERVAL_SEC = 60 * 2  # Run every 5 minutes
@@ -84,7 +84,7 @@ def init_skipped_sheet():
     client = gspread.authorize(creds_gapi)
 
     drive_service = build("drive", "v3", credentials=creds_gapi)
-    folder_name = "Skipped Tokens"
+    folder_name = "skipped"
     folder_metadata = {
         "name": folder_name,
         "mimeType": "application/vnd.google-apps.folder"
@@ -100,7 +100,7 @@ def init_skipped_sheet():
         folder_id = folder.get('id')
 
     today_str = datetime.now().strftime("%Y-%m-%d")
-    sheet_title = f"Skipped {today_str}"
+    sheet_title = f"skipped {today_str}"
     try:
         sheet = client.open(sheet_title).sheet1
     except gspread.exceptions.SpreadsheetNotFound:
@@ -120,10 +120,16 @@ def scan():
     log(f"🪙 Found {len(symbols)} tokens to scan\n")
     all_signals = []
     skipped_signals = []
+    skipped_signals_today = load_skipped_signals()
+    log(f"🔁 Loaded {len(skipped_signals_today)} skipped signals from Google Sheets.")
     sheet = init_google_sheet()
     earliest_1m_hints = {}
 
     for symbol in symbols:
+        if any(s['symbol'] == symbol for s in skipped_signals_today):
+            log(f"⏩ Skipping {symbol} — already marked as skipped today.")
+            skipped_signals.append({"symbol": symbol, "timeframe": "n/a", "reason": "Already skipped today"})
+            continue
         for tf in TIMEFRAMES:
             log(f"🔍 {symbol} @ {tf}")
             df = get_candles(symbol, tf)
@@ -144,10 +150,15 @@ def scan():
             signal = generate_signal(symbol, df, tf)
             if signal and isinstance(signal, dict) and signal.get("signal_age", 0) > 15:
                 log(f"⏱️ Skipping {symbol} @ {tf} — signal too old ({signal.get('signal_age', '?')} min)")
+                skipped_signals.append({
+                    "symbol": symbol,
+                    "timeframe": tf,
+                    "reason": f"Signal too old ({signal.get('signal_age', '?')} min)"
+                })
                 continue
             if signal is None:
                 # We treat None from generate_signal as skipped signal; capture minimal info
-                skipped_signals.append({"symbol": symbol, "timeframe": tf})
+                skipped_signals.append({"symbol": symbol, "timeframe": tf, "reason": "No signal returned"})
                 continue
             if signal:
                 df_1m = get_candles(symbol, "1m")
@@ -244,13 +255,18 @@ def scan():
         log("❌ No valid setups found.\n")
         if skipped_signals:
             skipped_sheet = init_skipped_sheet()
-            skipped_headers = ["symbol", "timeframe"]
+            skipped_headers = ["symbol", "timeframe", "reason", "timestamp"]
             existing_rows = skipped_sheet.get_all_values()
             if not existing_rows or skipped_headers != existing_rows[0][:len(skipped_headers)]:
                 skipped_sheet.insert_row(skipped_headers, 1)
             rows_skipped = []
             for row in skipped_signals:
-                rows_skipped.append([row.get("symbol", ""), row.get("timeframe", "")])
+                rows_skipped.append([
+                    row.get("symbol", ""),
+                    row.get("timeframe", ""),
+                    row.get("reason", "unspecified"),
+                    datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                ])
             if rows_skipped:
                 skipped_sheet.append_rows(rows_skipped)
         return
@@ -282,13 +298,18 @@ def scan():
         sheet.append_rows(rows_to_append)
     if skipped_signals:
         skipped_sheet = init_skipped_sheet()
-        skipped_headers = ["symbol", "timeframe"]
+        skipped_headers = ["symbol", "timeframe", "reason", "timestamp"]
         existing_rows = skipped_sheet.get_all_values()
         if not existing_rows or skipped_headers != existing_rows[0][:len(skipped_headers)]:
             skipped_sheet.insert_row(skipped_headers, 1)
         rows_skipped = []
         for row in skipped_signals:
-            rows_skipped.append([row.get("symbol", ""), row.get("timeframe", "")])
+            rows_skipped.append([
+                row.get("symbol", ""),
+                row.get("timeframe", ""),
+                row.get("reason", "unspecified"),
+                datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            ])
         if rows_skipped:
             skipped_sheet.append_rows(rows_skipped)
 
