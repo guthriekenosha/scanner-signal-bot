@@ -15,7 +15,8 @@ import json
 import io
 from google.oauth2.service_account import Credentials
 import pandas as pd
-from utils import send_telegram_alert, load_skipped_signals
+from utils import send_telegram_alert
+from signal_engine import load_skipped_signals
 
 AUTO_TRADE_MIN_SCORE = 4
 SCAN_INTERVAL_SEC = 60 * 2  # Run every 5 minutes
