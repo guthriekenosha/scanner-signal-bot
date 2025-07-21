@@ -49,7 +49,7 @@ import gspread
 from google.oauth2.service_account import Credentials
 from datetime import datetime
 
-def load_skipped_signals():
+def load_today_signals_from_sheets():
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
     creds_json = os.environ.get("GOOGLE_CREDENTIALS")
     creds_dict = json.loads(creds_json)
