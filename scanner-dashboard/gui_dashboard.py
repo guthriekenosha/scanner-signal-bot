@@ -1,18 +1,9 @@
 # gui_dashboard.py
 
-# --- Bootstrap the submodule if not present ---
 import os
-import sys
-import subprocess
 
-# --- Bootstrap the submodule if not present ---
-submodule_path = "signal_lib/scanner-signal-bot-lib"
-if not os.path.exists(submodule_path):
-    print("🛠 Initializing submodule...")
-    subprocess.run(["git", "submodule", "update", "--init", "--recursive"], check=True)
-
-# --- Add to Python path ---
-sys.path.insert(0, os.path.abspath(submodule_path))
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
 
 import streamlit as st
 import pandas as pd
@@ -31,6 +22,50 @@ from google.oauth2.service_account import Credentials
 import json
 
 from utils import load_today_signals_from_sheets
+
+
+from datetime import datetime
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
+
+def log_skipped_token(token: str, reason: str):
+    # Setup Google Sheets credentials
+    scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+    creds = ServiceAccountCredentials.from_json_keyfile_name('gdrive_credentials.json', scope)
+    client = gspread.authorize(creds)
+
+    # Format today's date for sheet naming
+    today = datetime.utcnow().strftime("%Y-%m-%d")
+    folder_name = "Skipped Tokens"
+    sheet_name = f"{today} Skipped"
+
+    # Try to open the folder and sheet (if folder-based handling is implemented)
+    try:
+        spreadsheet = client.open(sheet_name)
+    except gspread.SpreadsheetNotFound:
+        spreadsheet = client.create(sheet_name)
+        sheet = spreadsheet.sheet1
+        sheet.append_row(["timestamp", "token", "reason"])  # Add headers
+    else:
+        sheet = spreadsheet.sheet1
+
+    # Append the skipped token
+    sheet.append_row([datetime.utcnow().isoformat(), token, reason])
+    
+# --- Fetch skipped tokens from Google Sheet ---
+def fetch_skipped_tokens_from_google_sheet(sheet_url):
+    import gspread
+    from oauth2client.service_account import ServiceAccountCredentials
+    import pandas as pd
+
+    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+    creds = ServiceAccountCredentials.from_json_keyfile_name("gdrive_credentials.json", scope)
+    client = gspread.authorize(creds)
+
+    sheet = client.open_by_url(sheet_url).worksheet("skipped")
+    data = sheet.get_all_records()
+    df = pd.DataFrame(data)
+    return df
 
 def format_signal_age(delta):
     total_minutes = int(delta.total_seconds() // 60)
@@ -129,11 +164,11 @@ df = df[df["timestamp"] >= cutoff]
 
 # Load skipped signals if toggle is enabled
 if st.sidebar.checkbox("Show Skipped but High Potential Signals", value=False):
-    df_skipped = load_today_signals_from_sheets(sheet_name="Skipped Signals")
-    if not df_skipped.empty:
-        df_skipped["skipped"] = True
+    skipped_df = fetch_skipped_tokens_from_google_sheet("https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID_HERE")
+    if not skipped_df.empty:
+        skipped_df["skipped"] = True
         df["skipped"] = False
-        df = pd.concat([df, df_skipped], ignore_index=True)
+        df = pd.concat([df, skipped_df], ignore_index=True)
 
 st.sidebar.title("🔍 Filters")
 
