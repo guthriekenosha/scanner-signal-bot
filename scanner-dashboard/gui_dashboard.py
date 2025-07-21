@@ -26,13 +26,13 @@ import json
 
 from datetime import datetime
 import gspread
-from oauth2client.service_account import ServiceAccountCredentials
+from google.oauth2.service_account import Credentials
 
 def log_skipped_token(token: str, reason: str):
     # Setup Google Sheets credentials
     scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
-    creds = Credentials.from_service_account_file('gdrive_credentials.json', scopes=scope)
-    client = gspread.authorize(creds)
+    credentials = Credentials.from_service_account_file("credentials.json", scopes=scope)
+    client = gspread.authorize(credentials)
 
     # Format today's date for sheet naming
     today = datetime.utcnow().strftime("%Y-%m-%d")
