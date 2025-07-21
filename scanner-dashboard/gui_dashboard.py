@@ -155,7 +155,12 @@ df = pd.DataFrame(data)
 
 # Filter out stale logs older than 3 days
 cutoff = pd.Timestamp.now(tz="US/Eastern") - pd.Timedelta(days=3)
-df["timestamp"] = pd.to_datetime(df["timestamp"])
+if "timestamp" in df.columns:
+    df["timestamp"] = pd.to_datetime(df["timestamp"], errors="coerce")
+else:
+    st.warning("⚠️ 'timestamp' column missing in the loaded Google Sheet.")
+    st.write("Available columns:", df.columns.tolist())
+    df["timestamp"] = pd.NaT  # Add placeholder if needed to avoid downstream errors
 if df["timestamp"].dt.tz is None:
     df["timestamp"] = df["timestamp"].dt.tz_localize("US/Eastern")
 else:
