@@ -21,7 +21,7 @@ from google.oauth2.service_account import Credentials
 
 import json
 
-from scanner_dashboard.utils import load_today_signals_from_sheets
+from scanner.utils import load_today_signals_from_sheets
 
 
 from datetime import datetime
